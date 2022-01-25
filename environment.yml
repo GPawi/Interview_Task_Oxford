@@ -1,0 +1,6 @@
+name: Interview-Task
+
+dependencies:
+   - python=3.9
+   - pandas
+   - numpy
