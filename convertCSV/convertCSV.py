@@ -9,7 +9,6 @@ github: GPawi
 
 import pandas as pd
 import numpy as np
-import sys
 
 
 def convert_input(input_file):
@@ -130,20 +129,3 @@ def ensure_dtype(data):
                                     'source.bibliography.title': str})
     # Return transformed DataFrame
     return data_trans
-
-
-if __name__ == '__main__':
-    # Open Files
-    with open(sys.argv[1], 'rb') as in_file:
-        inputFile = pd.read_csv(in_file)
-    with open(sys.argv[2], 'rb') as out_file:
-        outputFile = pd.read_csv(out_file)
-    # Convert File to match desire output
-    converted_input_file = convert_input(inputFile)
-    # Ensure that all the dtypes are correct
-    input_csv = ensure_dtype(converted_input_file)
-    output_csv = ensure_dtype(outputFile)
-    # Check if input matches output
-    assert all(input_csv == output_csv)
-    # Print the newly transformed input file
-    print(input_csv)
