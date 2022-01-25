@@ -10,6 +10,26 @@ github: GPawi
 import pandas as pd
 import numpy as np
 
+# Expandable dictionary containing filter criteria from Hestia
+dict_node_filter = {'cycle': r'^cycle.',
+                    'site': r'^site.',
+                    'impactAssessment': r'impactAssessment.',
+                    'source': r'^source.'}
+
+# Expandable dictionary containing the sequence to merge DataFrames
+# based on the specific overlapping IDs
+"""
+Format  => 'Initial_merge': [[Node_DataFrame1, ID1], [Node_DataFrame2, ID2]]
+        => 'Merge_step1': [[Previous_MergeOutput_DataFrame0, ID-M0], [Node_DataFrame3, ID3]]
+        => 'Merge_step2': [[Previous_MergeOutput_DataFrame1, ID-M1], [Node_DataFrame4, ID4]]
+"""
+dict_merge_sequence = {'Initial_merge': [['site', 'site.@id'],
+                                         ['cycle', 'cycle.site.@id']],
+                       'Merge_1': [['merge_output', 'cycle.@id'],
+                                   ['impactAssessment', 'impactAssessment.cycle.@id']],
+                       'Merge_2': [['merge_output', 'impactAssessment.source.@id'],
+                                   ['source', 'source.@id']]}
+
 
 def convert_input(input_file):
     """
@@ -19,24 +39,32 @@ def convert_input(input_file):
     #Output:
     @merge_output: transformed pandas DataFrame as desired output
     """
-    # Split the input file into the individual nodes from Hestia
-    cycle_node = input_file.filter(regex=r'^cycle.')\
-        .replace('-', np.nan).dropna(axis=0)
-    site_node = input_file.filter(regex=r'^site.')\
-        .replace('-', np.nan).dropna(axis=0)
-    impact_node = input_file.filter(regex=r'^impactAssessment.')\
-        .replace('-', np.nan).dropna(axis=0)
-    source_node = input_file.filter(regex=r'^source.')\
-        .replace('-', np.nan).dropna(axis=0)
-    # Merge nodes on the specific overlapping IDs
-    merge_1 = pd.merge(site_node, cycle_node, how='inner',
-                       left_on=['site.@id'], right_on=['cycle.site.@id'])
-    merge_2 = pd.merge(merge_1, impact_node, how='inner',
-                       left_on=['cycle.@id'], right_on=['impactAssessment.cycle.@id'])
-    merge_3 = pd.merge(merge_2, source_node, how='inner',
-                       left_on=['impactAssessment.source.@id'], right_on=['source.@id'])
+    # Split the input file into the individual nodes based on filter criteria from Hestia
+    dict_node_frame = {}
+    for key in dict_node_filter:
+        filter_frame = input_file.filter(regex=dict_node_filter[key])\
+            .replace('-', np.nan)\
+            .dropna(axis=0)\
+            .reset_index(drop=True)
+        if len(filter_frame.columns) != 0:
+            dict_node_frame[key] = filter_frame
+    # Merge nodes based on sequential dictionary
+    merge_result = {}
+    for key in dict_merge_sequence:
+        if 'Initial' in key:
+            merge_result['merge_output'] = pd.merge(dict_node_frame[dict_merge_sequence[key][0][0]],
+                                                    dict_node_frame[dict_merge_sequence[key][1][0]],
+                                                    how='inner',
+                                                    left_on=[dict_merge_sequence[key][0][1]],
+                                                    right_on=[dict_merge_sequence[key][1][1]])
+        else:
+            merge_result['merge_output'] = pd.merge(merge_result[dict_merge_sequence[key][0][0]],
+                                                    dict_node_frame[dict_merge_sequence[key][1][0]],
+                                                    how='inner',
+                                                    left_on=[dict_merge_sequence[key][0][1]],
+                                                    right_on=[dict_merge_sequence[key][1][1]])
     # Sort the output based on cycle.@id
-    merge_output = merge_3[input_file.columns].sort_values(by=['cycle.@id'], ignore_index=True)
+    merge_output = merge_result['merge_output'][input_file.columns].sort_values(by=['cycle.@id'], ignore_index=True)
     # Return converted output
     return merge_output
 

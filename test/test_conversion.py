@@ -2,8 +2,8 @@
 # coding: utf-8
 
 import pandas as pd
-import numpy as np
-from convertCSV import *
+from convertCSV import (ensure_dtype, convert_input)
+
 
 def test_conversion():
     # Open Files
